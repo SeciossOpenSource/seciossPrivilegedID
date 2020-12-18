@@ -1,0 +1,576 @@
+#!/usr/bin/perl
+#
+# PrivilegedID password sync
+#
+# Copyright(c) 2019 SECIOSS, INC.
+
+use strict;
+use lib '../lib/perl';
+use Config::General;
+use Net::LDAP::Util qw(ldap_error_desc);
+use DBI;
+use LISM;
+use LISM::Constant;
+use Encode;
+use URI::Escape;
+use File::Basename;
+use Getopt::Std;
+use XML::Simple;
+use DateTime;
+use DateTime::Format::Strptime;
+use PHP::Serialization qw(unserialize);
+use JSON qw(encode_json decode_json);
+use Data::Dumper;
+use Crypt::OpenSSL::X509;
+use Crypt::OpenSSL::RSA;
+use Sys::Syslog;
+
+require 'LISM/Utils/lism_util.pl';
+require 'LISM/Utils/secioss_util.pl';
+
+#### CONSTANTS ####
+my $MYNAME = basename($0);
+
+our $ATTR_PERIOD = 'seciossPwdAllowChangePeriod;x-type-privilegedid';
+our $ATTR_PWDCHANGETIME = 'seciossPwdChangedTime';
+our $ATTR_ACCOUNTSTATUS = 'seciossAccountStatus';
+our $ATTR_PASSWORDSERIALIZE = 'seciossPwdSerializedData;x-type-privilegedid';
+our $ATTR_SAMLSERIALIZE = 'seciossSamlSerializedData';
+
+our $PRIVILEGEDID_IDSYNC_ON = 'general';
+our $PRIVILEGEDID_IDSYNC_OFF = 'nosync';
+
+### CONFIGURATION ###
+my $privpwdconf = '/opt/secioss/etc/privilegedidpwdsync.conf';
+my $config = Config::General->new($privpwdconf);
+my %param = $config->getall;
+our $RDB_DSN = $param{'dsn'};
+our $RDB_USER = $param{'dbuser'};
+our $RDB_PASSWD = $param{'dbpasswd'};
+our $RDB_TABLE = 'gateway_task';
+
+my $slapdconf = '/opt/secioss/etc/openldap/slapd.conf';
+$config = Config::General->new($slapdconf);
+%param = $config->getall;
+
+our $BASEDN = $param{'basedn'};
+our $ADMINDN = $param{'admindn'};
+our $PASSWD = $param{'adminpw'};
+our $CONF = $param{'conf'};
+our $SYNCDIR = $param{'syncdir'};
+our $LOGFILE = '';
+if (defined($param{'logfile'})) {
+    $LOGFILE = $param{'logfile'};
+}
+
+
+our $SA_PWD_LEN = 12;
+
+my $KEYFILE = '/etc/httpd/conf.d/auth_tkt.conf';
+if (!-f $KEYFILE) {
+    $KEYFILE = '/opt/secioss/etc/auth_tkt.conf';
+}
+my %NAMEDHOST_ALL = (
+    'google.com' => 'googleapps',
+    'onlinemicrosoft.com' => 'office365',
+    'cybozu.com' => 'cybozu',
+    'worksmobile.com' => 'lineworks',
+    'aws' => 'aws',
+    'adobe' => 'adobe',
+    'dropbox.com' => 'dropbox',
+    'gleas' => 'gleas',
+    'primedrive.jp' => 'primedrive',
+    'salesforce.com' => 'salesforce',
+    'mailluck.jp' => 'mailluck',
+    'box.com' => 'box',
+    'zendesk' => 'zendesk',
+    'hotprofile' => 'hotprofile',
+    'slack' => 'slack',
+    'zscaler' => 'zscaler',
+);
+
+my %NAMEDHOST = (
+    'google.com' => 'googleapps',
+    'cybozu.com' => 'cybozu',
+    'aws' => 'aws',
+    'salesforce.com' => 'salesforce',
+    'slack' => 'slack',
+);
+
+### SUBROUTINE ###
+sub _auditMessage
+{
+    my ($tenant, $modifier, $op, $dn, $result, $error, $message) = @_;
+    my ($service) = ($dn =~ /^.*,ou=([^,]*),${BASEDN}$/);
+    my ($uid) = ($dn =~ /uid=([^,]*)/);
+    
+    if ($uid && $service) {
+        my $logdata = "$tenant; cn=ID Manager\@$tenant,$BASEDN; $result; $service; $uid; ip=127.0.0.1 user=\"$modifier\" type=$op dn=\"$dn\" result=$result error=\"$error\" $message";
+        _auditOutput($logdata);
+    } else {
+        _err("audit message is logging failed: dn=$dn; rc=$result; error=$error; message=$message;");
+    }
+}
+
+sub _auditOutput {
+    my $msg   = shift;
+
+    openlog( $MYNAME, 'pid', 'local3' );
+    syslog( 'info', $msg );
+    closelog();
+}
+
+sub _output {
+    my $level = shift;
+    my $msg   = shift;
+
+    openlog( $MYNAME, 'pid', 'local4' );
+    syslog( $level, $msg );
+    closelog();
+}
+
+sub _info {
+    my $msg = shift;
+    _output( 'info', $msg );
+}
+
+sub _err {
+    my $msg = shift;
+    _output( 'err', $msg );
+}
+
+# sync use "lism.conf <sync></sync> attribute" 
+sub lismSyncPasswdChange
+{
+    my ($lism, $user, $password, $tenant, $allowservice) = @_;
+    my @allowservice = @{$allowservice};
+    my @modinfo;
+    my @errobj = ();
+    my $errmsg = '';
+
+    my $basedn = "ou=Master,$BASEDN";
+
+    if (!$password) {
+        $errmsg = "invalid password";
+        _err($errmsg);
+        return ($basedn, LDAP_OPERATIONS_ERROR , $errmsg);
+    }
+
+    my ($rc, @entries) = $lism->search($basedn, 2, 1, 0, 0, "(&(objectClass=Person)(uid=$user)(seciossPrivilegedIdType=*))", 0);
+    if ($rc) {
+        $errmsg = "Searching user($user) failed: ".ldap_error_desc($rc)."($rc)";
+        _err($errmsg);
+        return ($basedn, $rc, $errmsg);
+    } elsif (!@entries) {
+        $errmsg = "No such user($user)";
+        _err($errmsg);
+        return ($basedn, LDAP_NO_SUCH_OBJECT, $errmsg);
+    } elsif (@entries > 1) {
+        $errmsg = "User($user) is not unique";
+        _err($errmsg);
+        return ($basedn, LDAP_OPERATIONS_ERROR, $errmsg);
+    }
+
+    $entries[0] = encode('utf8', $entries[0]);
+    my ($dn) = ($entries[0] =~ /^dn: (.*)\n/);
+
+    # sso passwd
+    push(@modinfo, 'REPLACE', 'userPassword', $password);
+    my $pwdline = seciossEncPasswd("userPassword: $password", $KEYFILE);
+    $pwdline =~ s/\n([^: \n]+)$/$1/;
+    my ($encpasswd) = ($pwdline =~ /seciossEncryptedPassword: (.+)/i);
+    push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', $encpasswd);
+    #random passwd
+    push(@modinfo, 'REPLACE', 'seciossRandomPassword', $encpasswd);
+
+    # service passwd
+    my (@oldencpasswds) = ($entries[0] =~ /seciossEncryptedPassword: (.+)/ig);
+    foreach my $oldpwdline (@oldencpasswds) {
+        if ($oldpwdline =~ /^{([^}]*)}([a-zA-Z0-9\/\+=]+)$/) {
+            my $spid = $1;
+            my $oldpasswd = $2;
+            if ($spid) {
+                if (grep {$_ eq $spid} @allowservice) {
+                    # named rewrite password.
+                    push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', "{".$spid."}".$encpasswd);
+                } else {
+                    # other service password.
+                    push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', "{".$spid."}".$oldpasswd);
+                }
+            }
+        }
+    }
+    my $updateval = "userPassword:=***** seciossEncryptedPassword:=$encpasswd seciossRandomPassword:= $encpasswd";
+    $rc = $lism->modify($dn, @modinfo);
+
+    my $errmsg = '';
+    if ($rc) {
+        $errmsg = "Changing password failed($user): ".ldap_error_desc($rc)."($rc)";
+        _err($errmsg);
+        return ($dn, $rc, $errmsg, $updateval);
+    } else {
+        _info("Password synchronization succeeded($user)");
+    }
+
+    # all complete write success audit log.
+    _auditMessage($tenant, 'modify', $dn, $rc, $rc ? $errmsg : '', $updateval);
+
+    return ;
+}
+
+# sync use lism.conf storage.pm only.
+sub syncPasswdChange
+{
+    my ($lism, $user, $password, $tenant, $allowservice, $guacconf) = @_;
+    my @allowservice = @{$allowservice};
+    my %guacconf = ();
+    my @guacids = ();
+    if ($guacconf) {
+        %guacconf = %{$guacconf};
+        @guacids = sort keys %guacconf;
+    }
+    my @modinfo;
+    my @errobj = ();
+    my $errmsg = '';
+
+    my $basedn = "ou=Master,$BASEDN";
+    if (!$password) {
+        $errmsg = "invalid password";
+        _err($errmsg);
+        return ($basedn, LDAP_OPERATIONS_ERROR , $errmsg);
+    }
+
+    # master ldap search user.
+    my ($rc, @entries) = $lism->search($basedn, 2, 1, 0, 0, "(&(objectClass=Person)(uid=$user)(seciossPrivilegedIdType=*))", 0);
+    if ($rc) {
+        $errmsg = "Searching user($user) failed: ".ldap_error_desc($rc)."($rc)";
+        _err($errmsg);
+        return ($basedn, $rc, $errmsg);
+    } elsif (!@entries) {
+        $errmsg = "No such user($user)";
+        _err($errmsg);
+        return ($basedn, LDAP_NO_SUCH_OBJECT, $errmsg);
+    } elsif (@entries > 1) {
+        $errmsg = "User($user) is not unique";
+        _err($errmsg);
+        return ($basedn, LDAP_OPERATIONS_ERROR, $errmsg);
+    }
+
+    $entries[0] = encode('utf8', $entries[0]);
+    my ($dn) = ($entries[0] =~ /^dn: (.*)\n/);
+
+    # create encrypted password.
+    my $pwdline = seciossEncPasswd("userPassword: $password", $KEYFILE);
+    $pwdline =~ s/\n([^: \n]+)$/$1/;
+    my ($encpasswd) = ($pwdline =~ /seciossEncryptedPassword: (.+)/i);
+
+    # service update password only.
+    my $pwdsync = 0;
+    my (@allowedservice) = ($entries[0] =~ /seciossAllowedService: (.+)/ig);
+    foreach my $sp (@allowedservice) {
+        $sp = lc $sp;
+
+        # check Is the target in privilege settings
+        if (!(grep {$_ eq $sp} @allowservice)) {
+            next;
+        }
+
+        if (grep {$_ eq $sp} @guacids) {
+            # SeciossGateway sync create taskdata.
+            if (!defined($guacconf{$sp})) {
+                $errmsg = "gateway remote sync: $sp is no such object.";
+                _err($errmsg);
+                return ($dn, LDAP_NO_SUCH_OBJECT, $errmsg);
+            }
+            my %targetconfig = %{$guacconf{$sp}};
+
+            my ($loginid) = ($entries[0] =~ /seciossLoginId;x-sys-$sp: (.+)/i);
+            if (!$loginid) {
+                $errmsg = "gateway remote sync: loginid is invalid($dn).";
+                _err($errmsg);
+                return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+            }
+
+            # パスワード抽出
+            my $oldpassword = '';
+            my (@oldencryptedpasswds) = ($entries[0] =~ /seciossEncryptedPassword: (.+)/ig);
+            if (!@oldencryptedpasswds) {
+                $errmsg = "gateway remote sync: encryptedpassword is invalid($dn).";
+                _err($errmsg);
+                return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+            }
+            foreach my $oldencryptedpasswd (@oldencryptedpasswds) {
+                if ($oldencryptedpasswd =~ /^\{$sp\}(.+)$/) {
+                    $oldpassword = seciossDecPasswd($1, $KEYFILE);
+                    last;
+                } else {
+                    $oldpassword = seciossDecPasswd($oldencryptedpasswd, $KEYFILE);
+                    last;
+                }
+            }
+            if (!$oldpassword) {
+                $errmsg = "gateway remote sync: encryptedpassword decyrpt error($dn).";
+                _err($errmsg);
+                return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+            }
+
+            my %taskobject = (
+                'targetid' => $sp,
+                'newpassword' => $password,
+                'protocol' => $targetconfig{'protocol'},
+                'hostname' => $targetconfig{'hostname'},
+                'port' => $targetconfig{'port'},
+                'accountid' => $loginid,
+                'password' => $oldpassword
+            );
+            if (defined($targetconfig{'domain'}) && $targetconfig{'domain'}) {
+                $taskobject{'domain'} = $targetconfig{'domain'};
+            }
+            my $taskjson = encode_json(\%taskobject);
+
+            # SAMLの証明書を使って暗号化 & base64エンコード
+            my $key = $targetconfig{'certificate'};
+            my $encryptobj = &_encrypt($taskjson, $key);
+
+            # 現在日時(UTC)
+            my $nowtime = DateTime->now;
+            my $datetime = $nowtime->strftime("%F %T");
+
+            my $updateval = "userPassword:=*****";
+            # DB 書き込み
+            my $dbh = DBI->connect($RDB_DSN, $RDB_USER, $RDB_PASSWD);
+            if (!$dbh) {
+                $errmsg = "failed to connect db server. ".$dbh->errstr;
+                _err($errmsg);
+                return ($dn, 1, $errmsg);
+            }
+
+            my $sql = "INSERT INTO $RDB_TABLE (gatewayid, createDate, tenant, userName, type, object, status)"
+                        ." VALUES ('".$targetconfig{'gatewayid'}."' , '$datetime', '$tenant', '$user', 'passwordsync', '$encryptobj', 0)";
+
+            my $rv = $dbh->do($sql);
+            if (!defined($rv)) {
+                _err($sql . ';' . $dbh->errstr);
+                die $dbh->errstr;
+            }
+
+            $pwdsync = 1;
+            _info("$sp create task succeeded($user)");
+            _auditMessage($tenant, 'modify', $dn, $rc, $rc ? $errmsg : '', $updateval);
+
+        } else {
+            $pwdsync = 1;
+        }
+        last;
+    }
+
+    if (!$pwdsync) {
+        return;
+    }
+
+    # update password.
+    push(@modinfo, 'REPLACE', 'userPassword', $password);
+    push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', $encpasswd);
+    #random passwd
+    push(@modinfo, 'REPLACE', 'seciossRandomPassword', $encpasswd);
+
+    my $updateval = "userPassword:=***** seciossEncryptedPassword:=$encpasswd seciossRandomPassword:= $encpasswd";
+    if ($tenant) {
+        $lism->{bind}{edn} = "cn=ID Manager\@$tenant,$BASEDN";
+    }
+
+    $rc = $lism->modify($dn, @modinfo);
+    if ($tenant) {
+        undef($lism->{bind}{edn});
+    }
+    if ($rc) {
+        $errmsg = "Changing password failed($user): ".ldap_error_desc($rc)."($rc)";
+        _err($errmsg);
+        return ($dn, $rc, $errmsg, $updateval);
+    } else {
+        _info("Changing password succeeded($user)");
+    }
+
+    return;
+}
+
+sub search
+{
+    my ($lism, $base, $scope, $sizeLim, $timeLim, $filter) = @_;
+    my @entries;
+
+    $scope = defined($scope) ? $scope : 2;
+    $filter = $filter ? $filter : '(objectClass=*)';
+    $filter =~ s/&amp;/&/g;
+
+    my @objects;
+    my ($rc, @entries) = $lism->search($base, $scope, 0, $sizeLim, $timeLim, $filter, 0);
+    for (my $i = 0; $i < @entries; $i++) {
+        $objects[$i] = {};
+        foreach my $line (split(/\n/, $entries[$i])) {
+            my ($attr, $value) = ($line =~ /([^:]+): *(.*)$/);
+            # decode base64
+            if($value =~ /^:\s(.+)/){
+                my $base64_value = $1;
+                $value = decode_base64($base64_value);
+            }
+            if ($attr eq 'dn') {
+                $objects[$i]{$attr} = $value;
+            } else {
+                if (!defined($objects[$i]{$attr})) {
+                    $objects[$i]{$attr} = [];
+                }
+                push(@{$objects[$i]{$attr}}, $value);
+            }
+        }
+    }
+
+    return ($rc, @objects);
+}
+
+sub _encrypt {
+    my ($string, $arg) = @_;
+    my $x509 = Crypt::OpenSSL::X509->new_from_string($arg);
+
+    Crypt::OpenSSL::RSA->import_random_seed();
+    my $rsa = Crypt::OpenSSL::RSA->new_public_key($x509->pubkey());
+
+    return encode_base64($rsa->encrypt($string));
+}
+
+# ##
+# ## MAIN ##
+# ##
+_info("start $MYNAME");
+
+my $cmd = $ARGV[0];
+my $rc = 0;
+
+# LISM initialize.
+my $lism = new LISM;
+$lism->config('basedn', $BASEDN);
+$lism->config('admindn', $ADMINDN);
+$lism->config('adminpw', $PASSWD);
+$lism->config('syncdir', $SYNCDIR);
+$lism->config('conf', $CONF);
+
+if ($LOGFILE) {
+    $lism->config('logfile', $LOGFILE);
+}
+
+$rc = $lism->init();
+if ($rc) {
+    _err("LISM initialize failed: Bad configuration\n");
+    exit;
+}
+$lism->bind($ADMINDN, $PASSWD);
+
+# datetime for judgement.
+my $now = DateTime->now( time_zone => 'Asia/Tokyo' );
+
+# get Tenant.
+my $filter = "(&(objectClass=seciossTenant)($ATTR_PERIOD=*))";
+my $basedn = "ou=Master,$BASEDN";
+my ($rc , @tenants) = &search($lism, $basedn , 2, 0, 0, $filter);
+if ($rc) {
+    _err("failed to search tenant list ($rc).\n");
+    exit;
+}
+
+for (my $i = 0; $i < @tenants; $i++) {
+    my %tenantdata = %{@tenants[$i]};
+    my $tenant = @{$tenantdata{'o'}}[0];
+    if ($tenant eq 'System') {
+        $tenant = '';
+    }
+
+    my $changeperiod = $tenantdata{$ATTR_PERIOD}[0];
+    if( !defined($changeperiod) || $changeperiod < 1 ) {
+        next;
+    }
+    # get allow service
+    my @allow = ();
+    my $serializeddata = $tenantdata{$ATTR_PASSWORDSERIALIZE}[0];
+    if (defined($serializeddata) && $serializeddata) {
+        my $configdata = unserialize($serializeddata);
+        if ($configdata->{'syncallowservice'}) {
+            @allow = @{$configdata->{'syncallowservice'}};
+        }
+    }
+    if (!@allow) {
+        _err("failed to get privilegedid sync servicelist".($tenant ? ": tenant = $tenant" : ''));
+        next;
+    }
+
+    # get SeciossGateway Target data
+    my $metaf = "(&(objectClass=seciossSamlMetadata)(seciossSamlMetadataType=saml20-sp-remote))";
+    my $metadn = "ou=MetaData,".($tenant ? "o=$tenant," : "").$basedn;
+    my ($rc , @metadatas) = &search($lism, $metadn , 2, 0, 0, $metaf);
+    if ($rc) {
+        _err("failed to search metadata data".($tenant ? ": tenant = $tenant" : ''));
+        next;
+    }
+    my %guacconflist = ();
+    foreach my $metadata (@metadatas) {
+        if (!defined($metadata->{'seciossSamlSerializedData'}) || !defined($metadata->{'seciossSamlSerializedData'}[0]) ) {
+            next;
+        }
+        my $samlid = $metadata->{'cn'}[0];
+        my $samldata = unserialize($metadata->{'seciossSamlSerializedData'}[0]);
+        if (!defined($samldata->{'authproc'}) || !defined($samldata->{'authproc'}->{'60'}) || !defined($samldata->{'authproc'}->{'60'}->{'guac'})) {
+            next;
+        }
+        # my $entityid = $metadata->{'seciossSamlEntityId'}[0];
+        my $guacjson = decode_base64($samldata->{'authproc'}->{'60'}->{'guac'});
+        my $guacobj = decode_json($guacjson);
+        my %guacconf = %{$guacobj};
+        $guacconf{'gatewayid'} = $samldata->{'gatewayid'};
+        $guacconf{'certificate'} = $samldata->{'certificate'};
+        $guacconflist{$samlid} = \%guacconf;
+    }
+
+    # get privilegedid.
+    my $pfilter = "(&(objectClass=seciossIamAccount)(seciossPrivilegedIdType=*)($ATTR_ACCOUNTSTATUS=active))";
+    my $pdn = ($tenant ? "o=$tenant," : '').$basedn;
+    my ($rc , @privilegedids) = &search($lism, $pdn, 2, 0, 0, $pfilter);
+    if ($rc) {
+        _err("failed to search privilegedid list ($rc)");
+    }
+    if (!@privilegedids) {
+        next;
+    }
+
+    foreach my $privilegedid (@privilegedids) {
+        my %puser = %{$privilegedid};
+
+        my $user = $puser{'uid'}[0];
+        my $password = randString($SA_PWD_LEN, 'a..z', 'A..Z', '0..9');
+
+        # update judgement for latest datetime.
+        if (defined($puser{$ATTR_PWDCHANGETIME}) && $puser{$ATTR_PWDCHANGETIME}) {
+            my $changetime = DateTime::Format::Strptime->new(pattern => '%Y%m%d%H%M%S', time_zone => 'Asia/Tokyo')->parse_datetime($puser{$ATTR_PWDCHANGETIME}[0]);
+            $changetime->add(days => $changeperiod);
+            if (DateTime->compare($changetime, $now) > 0) {
+                next;
+            }
+        }
+        my @errobj = ();
+        if ($puser{'seciossPrivilegedIdType'}[0] eq $PRIVILEGEDID_IDSYNC_ON) {
+            # IDsync option enable.
+            @errobj = syncPasswdChange($lism, $user, $password, $tenant, \@allow, \%guacconflist);
+        } elsif ($puser{'seciossPrivilegedIdType'}[0] eq $PRIVILEGEDID_IDSYNC_OFF) {
+            # IDsync option disable.
+            @errobj = syncPasswdChange($lism, $user, $password, $tenant, \@allow, \%guacconflist);
+        }
+        if(@errobj) {
+            my $dn        = defined($errobj[0]) ? $errobj[0] : $BASEDN;
+            my $rc        = defined($errobj[1]) ? $errobj[1] : 0;
+            my $errmsg    = defined($errobj[2]) ? $errobj[2] : '';
+            my $updateval = defined($errobj[3]) ? $errobj[3] : '';
+            _auditMessage($tenant, 'modify', $dn, $rc, $rc ? $errmsg : '', $updateval);
+        }
+    }
+}
+
+_info("finished $MYNAME");
+exit;

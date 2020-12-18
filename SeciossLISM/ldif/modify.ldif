@@ -1,0 +1,9 @@
+dn: o=System,dc=example,dc=com
+changetype: modify
+replace: objectClass
+objectClass: organization
+objectClass: seciossTenant
+objectClass: seciossPwdPolicy
+-
+add: pwdAttribute
+pwdAttribute: 2.5.4.35
