@@ -8,6 +8,9 @@ sed -i -r -e '/\/\*\s*Privileged\sID/,/\*\// s/(\/\*\s*Privileged\sID|\*\/)//g' 
 cp -pf ./script/privilegedidpwdsync /opt/secioss/sbin/
 cp -pf ./script/privilegedidpwdsync.conf /opt/secioss/etc/
 cp -pf ./script/export_privilegedid_remote.pl /opt/secioss/sbin/
+# permission
+chmod +x /opt/secioss/sbin/privilegedidpwdsync
+chmod +x /opt/secioss/sbin/export_privilegedid_remote.pl
 
 echo "証明書作成用の情報を入力して下さい"
 
