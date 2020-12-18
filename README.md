@@ -19,7 +19,7 @@ LISM を導入してください。
 ### LISM LDAPデータ修正
 既存のデータに対して一部変更を行います。
 
-ldifフォルダに入っている modify.ldif を適用してください。
+ldifフォルダに入っている modify.ldif を適用してください。  
 suffixのdc=example,dc=comは、OpenLDAPの設定に合わせて変更して下さい。
 
 Suffix 変更
@@ -34,6 +34,27 @@ LDAP適応
 
 `systemctl restart slapd`
 
+### MariaDB セットアップ
+secioss PrivilegedID にはmysql/Mariadb が必要です。
+以下のコマンドでインストールしてください。
+
+`# yum install mariadb-server`
+
+文字コードの設定を行います。  
+/etc/my.cnf を開き [mysqld] セクションに以下の記述を追加して下さい。
+
+    default-storage-engine=InnoDB
+    character-set-server=utf8
+
+再起動を行って下さい。
+
+`# systemctl start mariadb`
+
+その後LISMのセットアップツールを起動し、mariadbの初期設定、接続確認メニューを行って下さい。
+
+* DBサーバの初期設定
+* DBサーバへの接続設定
+
 ### LISM モジュール セットアップシェル実行
 
 SeciossLISM 配下に存在している setup.sh を実行して下さい。
@@ -42,7 +63,7 @@ SeciossLISM 配下に存在している setup.sh を実行して下さい。
 
 ### Guacamole サーバー構築
 
-LISMとは別のサーバーにリモートアクセスに使用するGuacamoleサーバーを構築して下さい。
+LISMとは別のサーバーにリモートアクセスに使用するGuacamoleサーバーを構築して下さい。  
 よろしければ弊社導入記事を参考にして下さい。
 
 [働き方改革の一助に、「Apache Guacamole」でリモートデスクトップ](https://www.secioss.co.jp/%E5%83%8D%E3%81%8D%E6%96%B9%E6%94%B9%E9%9D%A9%E3%81%AE%E4%B8%80%E5%8A%A9%E3%81%AB%E3%80%81%E3%80%8Capache-guacamole%E3%80%8D%E3%81%A7%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%83%87%E3%82%B9%E3%82%AF/)
@@ -77,11 +98,11 @@ LISMセットアップシェルで作成した公開鍵証明書をGatewayServer
 特権ID管理＞ターゲットより登録を行います。
 ### 特権ID設定
 
-リモートアクセス先のアカウント設定を行います。
+リモートアクセス先のアカウント設定を行います。  
 特権ID管理＞特権IDより登録を行います。
 ### 特権ID利用設定
 
-リモートアクセスの設定を通常ユーザーに利用させるための設定を行います。
+リモートアクセスの設定を通常ユーザーに利用させるための設定を行います。  
 ユーザー＞一覧 より対象ユーザーを選択し、特権IDタブから設定をして下さい。
 
 ### Guacamole 設定反映
@@ -98,14 +119,14 @@ Guacamole 配置先
 
 `/etc/guacamole/user-mapping.xml`
 
-転送後は、Guacamoleやtomcatの再起動を行い、
+転送後は、Guacamoleやtomcatの再起動を行い、  
 利用を許可したユーザーの情報でログインします。
 
 その後利用したい接続先を選択することでリモートアクセスが可能です。
 
 ## 使用方法：定期パスワード変更
 
-リモートアクセス先の特権アカウントに対して定期的なパスワード変更を実施します。
+リモートアクセス先の特権アカウントに対して定期的なパスワード変更を実施します。  
 前提として **特権IDリモートアクセスの設定を行っていること** とし、以下の設定を行います。
 
 ### パスワード変更条件設定
