@@ -23,9 +23,11 @@ ldifフォルダに入っている modify.ldif を適用してください。
 suffixのdc=example,dc=comは、OpenLDAPの設定に合わせて変更して下さい。
 
 Suffix 変更
+
 `# sed -i -e s/dc=example,dc=com/対象のベースDN/g modify.ldif`
 
 LDAP適応
+
 `# ldapmodify -Y EXTERNAL -H ldapi:// -f modify.ldif`
 
 設定が完了したら、OpenLDAPを再起動します。
@@ -50,6 +52,7 @@ LISMとは別のサーバーにリモートアクセスに使用するGuacamole�
 以下のパッケージをインストールして下さい。
 
 `# yum install -y epel-release`
+
 `# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid`
 
 GatewayServer配下のファイルを配置します。
