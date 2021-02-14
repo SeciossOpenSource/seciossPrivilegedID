@@ -16,24 +16,6 @@ Secioss PrivilegedID では以下の機能を提供します。
 ### 事前準備
 LISM を導入してください。
 
-### LISM LDAPデータ修正
-既存のデータに対して一部変更を行います。
-
-ldifフォルダに入っている modify.ldif を適用してください。  
-suffixのdc=example,dc=comは、OpenLDAPの設定に合わせて変更して下さい。
-
-Suffix 変更
-
-`# sed -i -e s/dc=example,dc=com/対象のベースDN/g modify.ldif`
-
-LDAP適応
-
-`# ldapmodify -Y EXTERNAL -H ldapi:// -f modify.ldif`
-
-設定が完了したら、OpenLDAPを再起動します。
-
-`systemctl restart slapd`
-
 ### MariaDB セットアップ
 secioss PrivilegedID にはmysql/Mariadb が必要です。
 以下のコマンドでインストールしてください。
