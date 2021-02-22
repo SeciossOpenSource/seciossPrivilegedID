@@ -56,7 +56,7 @@ LISMとは別のサーバーにリモートアクセスに使用するGuacamole�
 
 `# yum install -y epel-release`
 
-`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid`
+`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2`
 
 GatewayServer配下のファイルを配置します。
 
