@@ -33,7 +33,6 @@ if (!ini_get('date.timezone')) {
 $logid = 'PRIVILEGEDID_REMOTE_SYNC';
 $log = Log::singleton('syslog', LOG_LOCAL4, $logid);
 
-
 /**
  * 証明書を使った復号化を行う
  *
@@ -165,6 +164,48 @@ function _login($id, $tenant, $password, $url)
     return $sessid;
 }
 
+function _updateSessionRecords($sessid, $gatewayid, $dir, $url)
+{
+    global $log;
+
+    if (!$dir) {
+        return 0;
+    }
+
+    $records = [];
+    $files = glob("$dir/*");
+    foreach ($files as $file) {
+        $records[] = basename($file);
+    }
+
+    $data = [
+        'sessid' => $sessid,
+        'action_server_privilegedIdSessionRecord' => 'true',
+        'gatewayid' => $gatewayid,
+        'records' => $records,
+    ];
+    // logging
+    $log->info('Session Records Update request. [gatewayid = '.$gatewayid.']');
+
+    $xml = _fetchProvisioningAPI($data, $url);
+    if (isset($xml) && $xml) {
+        // convert php array.
+        $json = json_encode($xml);
+        $obj = json_decode($json, true);
+    } else {
+        $obj['code'] = -1;
+        $obj['message'] = 'unknown error. convert xml -> php array variable.';
+    }
+
+    if (isset($obj) && isset($obj['code']) && $obj['code'] == 0) {
+        $log->info('Session Records update succeeded.');
+    } else {
+        $log->err('Session Records update failed. [code = '.$obj['code'].', message = '.$obj['message'].']');
+    }
+
+    return $obj['code'];
+}
+
 /**
  * Gateway Taskdata Get API
  *
@@ -272,7 +313,7 @@ function _setTaskData($sessid, $taskid, $user, $gatewayid, $resultcode, $resulto
 $log->info('Start privilegedid_remote_sync');
 
 $certdir = '/opt/secioss-gateway/www/simplesamlphp/cert';
-$options = getopt("certdir:");
+$options = getopt('certdir:');
 if (isset($options['certdir']) && $options['certdir']) {
     $certdir = $options['certdir'];
 }
@@ -288,6 +329,7 @@ $iv = $conf['seciosslink']['iv'];
 $gateway_id = $conf['gateway']['gateway_id'];
 $privatekey = $certdir.'/'.$conf['gateway']['privatekey'];
 $publickey = $certdir.'/PublicKey-idp'.($tenant ? "-$tenant" : '').'.pem';
+$record_dir = isset($conf['gateway']['record_dir']) ? $conf['gateway']['record_dir'] : null;
 
 if (isset($conf['seciosslink']['passwd']) && $conf['seciosslink']['passwd']) {
     $passwd = $conf['seciosslink']['passwd'];
@@ -295,7 +337,6 @@ if (isset($conf['seciosslink']['passwd']) && $conf['seciosslink']['passwd']) {
     $text = base64_decode($pword);
     $passwd = openssl_decrypt($text, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
 }
-
 
 // 暗号化用証明書チェック
 if (!file_exists($privatekey)) {
@@ -314,10 +355,13 @@ if (!$sessionid) {
     exit(1);
 }
 
-// タスクリスト取得
 if ($tenant) {
     $gateway_id = $gateway_id.'-'.$tenant;
 }
+
+_updateSessionRecords($sessionid, $gateway_id, $record_dir, $seciosslink);
+
+// タスクリスト取得
 $tasklist = _getTaskData($sessionid, $gateway_id, 0, $seciosslink);
 if (!count($tasklist['entries'])) {
     // データなし
