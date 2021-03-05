@@ -161,7 +161,6 @@ $aeskey = Crypt::getSecretKey($conf['gateway']['keyfile']);
 $password = '';
 if (isset($attrs['seciossEncryptedPassword'])) {
     $password = Util::decrypt($attrs['seciossEncryptedPassword'], null, $aeskey);
-print("pass $password\n");
 }
 $log->info("$authuser login to $id");
 
