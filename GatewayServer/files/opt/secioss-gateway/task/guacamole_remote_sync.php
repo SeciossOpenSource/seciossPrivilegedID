@@ -187,6 +187,26 @@ for ($i = 0; $i < $entries['count']; $i++) {
         for ($j = 0; $j < $entries[$i]['seciossprivilegerole']['count']; $j++) {
             $role_json = json_decode($entries[$i]['seciossprivilegerole'][$j]);
             $pid = $role_json->privilegedid.'/'.$role_json->serviceid;
+            if ($role_json->privilegetype == 'infinite') {
+            } elseif ($role_json->privilegetype == 'time_limitation') {
+                $now = time();
+                if (property_exists($role_json, 'startdate')) {
+                    $startdate = $role_json->startdate;
+                    $startdate = str_replace('/', '-', $startdate).':00';
+                    if ($now < strtotime($startdate)) {
+                        continue;
+                    }
+                }
+                if (property_exists($role_json, 'expirationdate')) {
+                    $expirationdate = $role_json->expirationdate;
+                    $expirationdate = str_replace('/', '-', $expirationdate).':59';
+                    if ($now > strtotime($expirationdate)) {
+                        continue;
+                    }
+                }
+            } else {
+                continue;
+            }
             if (isset($pid_list[$pid]) && isset($pid_list[$pid]['connection_id'])) {
                 $connection_id = $pid_list[$pid]['connection_id'];
             } else {
