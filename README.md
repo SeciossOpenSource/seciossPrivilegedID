@@ -103,7 +103,7 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 `# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
 
-LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
+また、LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
 
 ## 使用方法：特権IDリモートアクセス
 
@@ -128,7 +128,7 @@ LISMをSecioss PrivilegedIDと別サーバーにインストールしている�
 
 ### Guacamole 設定反映
 
-設定した特権IDの情報をGuacamoleに反映するため、Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。。
+設定した特権IDの情報をGuacamoleに反映するため、Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。
 
     0 * * * * root php /opt/secioss-gateway/task/guacamole_remote_sync.php
 
