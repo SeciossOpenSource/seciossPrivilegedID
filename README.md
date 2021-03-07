@@ -1,4 +1,4 @@
-# secioss PrivilegedID
+# Secioss PrivilegedID
 Secioss PrivilegedID は、オープンソースの特権ID管理ソフトウェアで、Linuxサーバー、Windowsサーバー、データベースサーバーへの特権IDによるアクセスの制御を行います。
 Windowsサーバーに対するアクセス制御には、Apache Guacamoleを使用しています。
 
@@ -16,7 +16,7 @@ Secioss PrivilegedID では以下の機能を提供します。
 
 ## インストール
 ### MariaDB セットアップ
-secioss PrivilegedID にはmysql/Mariadb が必要です。
+Secioss PrivilegedID にはmysql/Mariadb が必要です。
 以下のコマンドでインストールしてください。
 
 `# yum install mariadb-server`
