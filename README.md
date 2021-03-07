@@ -7,12 +7,12 @@ Secioss PrivilegedID では以下の機能を提供します。
 
 * SSH/RDP/データベースへのアクセス制御
 * 特権IDのサーバーでの操作記録
-* Linuxサーバー、Windowsサーバーの特権IDに対するパスワードローテーション
+* Linuxサーバー、Windowsサーバーの特権IDに対する定期パスワード変更
 
 
 ## 動作環境
 * OS：CentOS7
-* ミドルウェア：httpd、Guacamole
+* ミドルウェア：httpd、Shibboleth SP、Guacamole
 
 ## インストール
 ### MariaDB セットアップ
@@ -69,6 +69,24 @@ guacamole-auth-jdbc-1.3.0/mysql/schema内のデータをデータベースに登
     mysql-auto-create-accounts: true
     http-auth-hader: Proxy-User
 
+### Shibboleth SP
+Secioss PrivilegedIDは、認証をSAMLで行うので、Shibboleth SPをインストールします。SAML IdPは別途用意して下さい。
+Shibboleth SPのインストール方法については、[こちら](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)を参考にして下さい。
+
+/etc/httpd/conf.d/shibd.confに以下の設定を追加して、httpdを再起動して下さい。
+
+    <Location /pidgw>
+      AuthType shibboleth
+      ShibRequestSetting requireSession 1
+      require shib-session
+    </Location>
+    
+    <Location /guacamole>
+      AuthType shibboleth
+      ShibRequestSetting requireSession 1
+      require shib-session
+    </Location>
+
 ### 管理コンソール
 管理コンソールとして、LISM( https://github.com/SeciossOpenSource/LISM )をインストールして下さい。
 LISMは、Secioss PrivilegedIDと別サーバーにインストールしても構いません。
@@ -87,7 +105,7 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 ## 使用方法：特権IDリモートアクセス
 
-ユーザーにリモートアクセスを行わせるための設定を
+ユーザーにリモートアクセスを行わせるための設定を行います。
 
 ### リモートアクセス先の接続情報設定
 
