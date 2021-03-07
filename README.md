@@ -44,17 +44,30 @@ GatewayServer配下のファイルを配置します。
 
 ### Guacamole サーバー構築
 
-Windowsサーバーへのリモートアクセスに使用するGuacamoleサーバーをインストールして下さい。  
+Windowsサーバーへのリモートアクセスに使用するGuacamoleサーバーをインストールして下さい。
 よろしければ弊社導入記事を参考にして下さい。
 
 [働き方改革の一助に、「Apache Guacamole」でリモートデスクトップ](https://www.secioss.co.jp/%E5%83%8D%E3%81%8D%E6%96%B9%E6%94%B9%E9%9D%A9%E3%81%AE%E4%B8%80%E5%8A%A9%E3%81%AB%E3%80%81%E3%80%8Capache-guacamole%E3%80%8D%E3%81%A7%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%83%87%E3%82%B9%E3%82%AF/)
 
-Guacamoleサーバーの設定はデータベースで管理し、認証はShibboleth SPで行うので、以下のエクステンションを/etc/guacamole/extensionsに配置して下さい。
+Guacamoleサーバーの設定はデータベースで管理し、認証はShibboleth SPで行うので、以下のエクステンションのjarファイルを/etc/guacamole/extensionsに配置して下さい。
 
 * [guacamole-auth-jdbc-1.3.0.tar.gz](https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz)
 * [guacamole-auth-header-1.2.0.tar.gz](https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-header-1.2.0.tar.gz)
 
+guacamole-auth-jdbc-1.3.0/mysql/schema内のデータをデータベースに登録して下さい。
+`# cat schema/*.sql | mysql -u root -p guacamole_db`
+
 また、MySQL JDBCドライバを https://dev.mysql.com/downloads/connector/j/ から取得してインストールして下さい。
+
+最後に/etc/guacamole/guacamole.propertiesに以下の設定を追加してから、Guacamoleのデーモンの再起動を行って下さい。
+
+    mysql-hostname: <DBサーバーのホスト名>
+    mysql-port: 3306
+    mysql-database: guacamole_db
+    mysql-username: <DBサーバーに接続するユーザー>
+    mysql-password: <DBサーバーに接続するパスワード>
+    mysql-auto-create-accounts: true
+    http-auth-hader: Proxy-User
 
 ### 管理コンソール
 管理コンソールとして、LISM( https://github.com/SeciossOpenSource/LISM )をインストールして下さい。
