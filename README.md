@@ -71,7 +71,7 @@ guacamole-auth-jdbc-1.3.0/mysql/schema内のデータをデータベースに登
 
 ### Shibboleth SP
 Secioss PrivilegedIDは、認証をSAMLで行うので、Shibboleth SPをインストールします。SAML IdPは別途用意して下さい。
-Shibboleth SPのインストール方法については、[こちら](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)を参考にして下さい。
+Shibboleth SPのインストール方法については、こちら（[Shibboleth SPを使ってSAMLに対応したサイトを作ろう](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)）を参考にして下さい。
 
 /etc/httpd/conf.d/shibd.confに以下の設定を追加して、httpdを再起動して下さい。
 
@@ -126,9 +126,9 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 ### Guacamole 設定反映
 
-Secioss PrivilegedIDサーバー上で、以下のスクリプトを実行します。
+Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。。
 
-`# php /opt/secioss-gateway/task/guacamole_remote_sync.php`
+    0 * * * * root php /opt/secioss-gateway/task/guacamole_remote_sync.php
 
 ## 使用方法：定期パスワード変更
 
@@ -141,10 +141,10 @@ Secioss PrivilegedIDサーバー上で、以下のスクリプトを実行しま
 
 ### パスワード変更
 
-LISMサーバーにて以下のスクリプトを実行します。
+LISMサーバー上で、cronで1日1回以下のスクリプトを実行するように設定して下さい。
 
-`# /opt/secioss/sbin/privilegedidpwdsync`
+    0 0 * * * root/opt/secioss/sbin/privilegedidpwdsync
 
-スクリプト実行後、Secioss PrivilegedIDサーバーに存在しているスクリプトを実行します。
+Secioss PrivilegedIDサーバー上で、上記のスクリプト実行後に1日1回以下のスクリプトが実行されるように設定して下さい。
 
-`# php /opt/secioss-gateway/task/privilegedid_remote_sync.php`
+    30 0 * * * root/opt/secioss-gateway/task/privilegedid_remote_sync.php
