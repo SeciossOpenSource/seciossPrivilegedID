@@ -36,7 +36,7 @@ Secioss PrivilegedID にはmysql/Mariadb が必要です。
 
 `# yum install -y epel-release`
 
-`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2`
+`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2 mariadb postgresql`
 
 GatewayServer配下のファイルを配置します。
 
@@ -103,6 +103,8 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 `# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
 
+LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
+
 ## 使用方法：特権IDリモートアクセス
 
 ユーザーにリモートアクセスを行わせるための設定を行います。
@@ -126,7 +128,7 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 ### Guacamole 設定反映
 
-Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。。
+設定した特権IDの情報をGuacamoleに反映するため、Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。。
 
     0 * * * * root php /opt/secioss-gateway/task/guacamole_remote_sync.php
 
