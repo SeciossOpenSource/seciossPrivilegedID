@@ -1,21 +1,20 @@
 # secioss PrivilegedID
-Secioss PrivilegedID は、LISM(LDAP Identity Synchronization Manager) に特権ID管理機能を拡張するモジュールです。
+Secioss PrivilegedID は、オープンソースの特権ID管理ソフトウェアで、Linuxサーバー、Windowsサーバー、データベースサーバーへの特権IDによるアクセスの制御を行います。
+Windowsサーバーに対するアクセス制御には、Apache Guacamoleを使用しています。
 
 ## 概要
 Secioss PrivilegedID では以下の機能を提供します。
 
-* Guacamoleを介したSSH/RDPのリモートアクセス
-* 同一ネットワーク内に存在するマシンの特権アカウントのパスワード変更
+* SSH/RDP/データベースへのアクセス制御
+* 特権IDによる操作の記録
+* Linuxサーバー、Windowsサーバーの特権IDに対するパスワードローテーション
 
 
 ## 動作環境
 * OS：CentOS7
-* ミドルウェア：LISM、Guacamole
+* ミドルウェア：httpd、Guacamole
 
 ## インストール
-### 事前準備
-LISM を導入してください。
-
 ### MariaDB セットアップ
 secioss PrivilegedID にはmysql/Mariadb が必要です。
 以下のコマンドでインストールしてください。
@@ -32,26 +31,7 @@ secioss PrivilegedID にはmysql/Mariadb が必要です。
 
 `# systemctl start mariadb`
 
-その後LISMのセットアップツールを起動し、mariadbの初期設定、接続確認メニューを行って下さい。
-
-* DBサーバの初期設定
-* DBサーバへの接続設定
-
-### LISM モジュール セットアップシェル実行
-
-SeciossLISM 配下に存在している setup.sh を実行して下さい。
-
-`# ./lism-setup.sh`
-
-### Guacamole サーバー構築
-
-LISMとは別のサーバーにリモートアクセスに使用するGuacamoleサーバーを構築して下さい。  
-よろしければ弊社導入記事を参考にして下さい。
-
-[働き方改革の一助に、「Apache Guacamole」でリモートデスクトップ](https://www.secioss.co.jp/%E5%83%8D%E3%81%8D%E6%96%B9%E6%94%B9%E9%9D%A9%E3%81%AE%E4%B8%80%E5%8A%A9%E3%81%AB%E3%80%81%E3%80%8Capache-guacamole%E3%80%8D%E3%81%A7%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%83%87%E3%82%B9%E3%82%AF/)
-
-### Guacamole サーバー ID同期モジュール セットアップ
-
+### Secioss PrivilegedID
 以下のパッケージをインストールして下さい。
 
 `# yum install -y epel-release`
@@ -62,9 +42,29 @@ GatewayServer配下のファイルを配置します。
 
 `# ./gateway-setup.sh`
 
-LISMセットアップシェルで作成した公開鍵証明書をGatewayServerに配置します。
+### Guacamole サーバー構築
 
-`# scp ユーザー@LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
+Windowsサーバーへのリモートアクセスに使用するGuacamoleサーバーを構築して下さい。  
+よろしければ弊社導入記事を参考にして下さい。
+
+[働き方改革の一助に、「Apache Guacamole」でリモートデスクトップ](https://www.secioss.co.jp/%E5%83%8D%E3%81%8D%E6%96%B9%E6%94%B9%E9%9D%A9%E3%81%AE%E4%B8%80%E5%8A%A9%E3%81%AB%E3%80%81%E3%80%8Capache-guacamole%E3%80%8D%E3%81%A7%E3%83%AA%E3%83%A2%E3%83%BC%E3%83%88%E3%83%87%E3%82%B9%E3%82%AF/)
+
+
+### 管理コンソール
+管理コンソールとして、LISM( https://github.com/SeciossOpenSource/LISM )をインストールして下さい。
+LISMは、Secioss PrivilegedIDと別サーバーにインストールしても構いません。
+LISMのセットアップツール(setup.sh)を起動時に、mariadbの初期設定、接続確認メニューを行って下さい。
+
+* DBサーバの初期設定
+* DBサーバへの接続設定
+
+インストール後、SeciossLISM 配下に存在している lism-setup.sh を実行して下さい。
+
+`# ./lism-setup.sh`
+
+lism-setup.shを実行すると、公開鍵証明書が作成されるので、Secioss PrivilegedIDサーバーにに配置して下さい。。
+
+`# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
 
 ## 使用方法：特権IDリモートアクセス
 
@@ -89,22 +89,9 @@ LISMセットアップシェルで作成した公開鍵証明書をGatewayServer
 
 ### Guacamole 設定反映
 
-LISMサーバーにて以下のスクリプトを実行します。
+Secioss PrivilegedIDサーバー上で、以下のスクリプトを実行します。
 
-`# /opt/secioss/sbin/export_privilegedid_remote.pl`
-
-その後以下のパスに Guacamole接続用のプロファイル user-mapping.xml が出力されますので、Guacamole サーバーへ転送します。
-
-`/opt/secioss/etc/user-mapping.xml`
-
-Guacamole 配置先
-
-`/etc/guacamole/user-mapping.xml`
-
-転送後は、Guacamoleやtomcatの再起動を行い、  
-利用を許可したユーザーの情報でログインします。
-
-その後利用したい接続先を選択することでリモートアクセスが可能です。
+`# /opt/secioss-gateway/task/guacamole_remote_sync.pl`
 
 ## 使用方法：定期パスワード変更
 
