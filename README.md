@@ -128,7 +128,7 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 Secioss PrivilegedIDサーバー上で、以下のスクリプトを実行します。
 
-`# /opt/secioss-gateway/task/guacamole_remote_sync.pl`
+`# php /opt/secioss-gateway/task/guacamole_remote_sync.php`
 
 ## 使用方法：定期パスワード変更
 
@@ -145,6 +145,6 @@ LISMサーバーにて以下のスクリプトを実行します。
 
 `# /opt/secioss/sbin/privilegedidpwdsync`
 
-スクリプト実行後、Guacamoleサーバーに存在しているスクリプトを実行します。
+スクリプト実行後、Secioss PrivilegedIDサーバーに存在しているスクリプトを実行します。
 
 `# php /opt/secioss-gateway/task/privilegedid_remote_sync.php`
