@@ -50,10 +50,10 @@ Windowsサーバーへのリモートアクセスに使用するGuacamoleサー�
 
 Guacamoleサーバーの設定はデータベースで管理し、認証はShibboleth SPで行うので、以下のエクステンションのjarファイルを/etc/guacamole/extensionsに配置して下さい。
 
-* [guacamole-auth-jdbc-1.3.0.tar.gz](https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz)
-* [guacamole-auth-header-1.2.0.tar.gz](https://apache.org/dyn/closer.cgi?action=download&filename=guacamole/1.3.0/binary/guacamole-auth-header-1.2.0.tar.gz)
+* [guacamole-auth-jdbc](http://guacamole.apache.org/releases/)
+* [guacamole-auth-header](http://guacamole.apache.org/releases/)
 
-guacamole-auth-jdbc-1.3.0/mysql/schema内のデータをデータベースに登録して下さい。
+guacamole-auth-jdbc-x.x.x/mysql/schema内のデータをデータベースに登録して下さい。
 
 `# cat schema/*.sql | mysql -u root -p guacamole_db`
 
