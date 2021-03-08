@@ -53,7 +53,7 @@ Guacamoleサーバーの設定はデータベースで管理し、認証はShibb
 * [guacamole-auth-jdbc](http://guacamole.apache.org/releases/)
 * [guacamole-auth-header](http://guacamole.apache.org/releases/)
 
-guacamole-auth-jdbc-x.x.x/mysql/schema内のデータをデータベースに登録して下さい。
+guacamole-auth-jdbc-x.x.x.tar.gzを展開したguacamole-auth-jdbc-x.x.x/mysql/schema内のデータをデータベースに登録して下さい。
 
 `# cat schema/*.sql | mysql -u root -p guacamole_db`
 
