@@ -31,6 +31,24 @@ Secioss PrivilegedID にはmysql/Mariadb が必要です。
 
 `# systemctl start mariadb`
 
+### 管理コンソール
+管理コンソールとして、LISM( https://github.com/SeciossOpenSource/LISM )をインストールして下さい。  
+LISMは、Secioss PrivilegedIDと別サーバーにインストールしても構いません。  
+LISMのセットアップツール(setup.sh)を起動時に、mariadbの初期設定、接続確認メニューを行って下さい。
+
+* DBサーバの初期設定
+* DBサーバへの接続設定
+
+インストール後、SeciossLISM 配下に存在している lism-setup.sh を実行して下さい。
+
+`# ./lism-setup.sh`
+
+lism-setup.shを実行すると、公開鍵証明書が作成されるので、Secioss PrivilegedIDサーバーにに配置して下さい。。
+
+`# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
+
+また、LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
+
 ### Secioss PrivilegedID
 以下のパッケージをインストールして下さい。
 
@@ -71,7 +89,8 @@ guacamole-auth-jdbc-x.x.x.tar.gzを展開したguacamole-auth-jdbc-x.x.x/mysql/s
 
 ### Shibboleth SP
 Secioss PrivilegedIDは、認証をSAMLで行うので、Shibboleth SPをインストールします。SAML IdPは別途用意して下さい。  
-Shibboleth SPのインストール方法については、こちら（[Shibboleth SPを使ってSAMLに対応したサイトを作ろう](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)）を参考にして下さい。
+Shibboleth SPのインストール方法については、こちら（[Shibboleth SPを使ってSAMLに対応したサイトを作ろう](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)）を参考にして下さい。  
+SAMLレスポンスのName IDでLISMのユーザーIDを渡すように設定して下さい。
 
 /etc/httpd/conf.d/shibd.confに以下の設定を追加して、httpdを再起動して下さい。
 
@@ -86,24 +105,6 @@ Shibboleth SPのインストール方法については、こちら（[Shibbolet
       ShibRequestSetting requireSession 1
       require shib-session
     </Location>
-
-### 管理コンソール
-管理コンソールとして、LISM( https://github.com/SeciossOpenSource/LISM )をインストールして下さい。  
-LISMは、Secioss PrivilegedIDと別サーバーにインストールしても構いません。  
-LISMのセットアップツール(setup.sh)を起動時に、mariadbの初期設定、接続確認メニューを行って下さい。
-
-* DBサーバの初期設定
-* DBサーバへの接続設定
-
-インストール後、SeciossLISM 配下に存在している lism-setup.sh を実行して下さい。
-
-`# ./lism-setup.sh`
-
-lism-setup.shを実行すると、公開鍵証明書が作成されるので、Secioss PrivilegedIDサーバーにに配置して下さい。。
-
-`# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
-
-また、LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
 
 ## 使用方法：特権IDリモートアクセス
 ユーザーにリモートアクセスを行わせるための設定を行います。
