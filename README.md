@@ -127,7 +127,6 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 ユーザー＞一覧 より対象ユーザーを選択し、特権IDタブから設定をして下さい。
 
 ### Guacamole 設定反映
-
 設定した特権IDの情報をGuacamoleに反映するため、Secioss PrivilegedIDサーバー上で、以下の設定をcronで1時間に1回実行するように設定して下さい。
 
     0 * * * * root php /opt/secioss-gateway/task/guacamole_remote_sync.php
