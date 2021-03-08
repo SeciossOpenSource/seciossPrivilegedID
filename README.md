@@ -90,7 +90,7 @@ guacamole-auth-jdbc-x.x.x.tar.gzを展開したguacamole-auth-jdbc-x.x.x/mysql/s
 ### Shibboleth SP
 Secioss PrivilegedIDは、認証をSAMLで行うので、Shibboleth SPをインストールします。SAML IdPは別途用意して下さい。  
 Shibboleth SPのインストール方法については、こちら（[Shibboleth SPを使ってSAMLに対応したサイトを作ろう](https://www.secioss.co.jp/shibboleth-sp%e3%82%92%e4%bd%bf%e3%81%a3%e3%81%a6saml%e3%81%ab%e5%af%be%e5%bf%9c%e3%81%97%e3%81%9f%e3%82%b5%e3%82%a4%e3%83%88%e3%82%92%e4%bd%9c%e3%82%8d%e3%81%86/)）を参考にして下さい。  
-SAMLレスポンスのName IDでLISMのユーザーIDを渡すように設定して下さい。
+SAMLレスポンスのName IDで、LISMのユーザーIDを渡すように設定して下さい。
 
 /etc/httpd/conf.d/shibd.confに以下の設定を追加して、httpdを再起動して下さい。
 
