@@ -211,8 +211,8 @@ Secioss PrivilegedIDサーバー上で、上記のスクリプト実行後に1�
 |privilegedid[]|〇|特権ID|
 |assignedservice[]|〇|対象サーバーのターゲットID|
 |privilegetype[]|〇|取消契機（infinite：無期限、time_limiteation：期間指定）|
-|startdate[]||アクセス開始日時|
-|expirationdate[]||アクセス終了日時|
+|startdate[]||アクセス開始日時（yyyy/mm/dd HH:MM:SS）|
+|expirationdate[]||アクセス終了日時（yyyy/mm/dd HH:MM:SS）|
 
 特権IDを複数付与する場合、privielgedid、assigndservice、privilgetype、startdate、expireationdateを配列で渡して下さい。
 
