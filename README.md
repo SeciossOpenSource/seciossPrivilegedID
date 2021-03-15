@@ -62,9 +62,11 @@ GatewayServer配下のファイルを配置します。
 
 Ratchetをインストールします。
 
-`# cd /opt/secioss-gatway/www/server`
+`$ cp /opt/secioss-gatway/www/server/composer.json .`
 
-`composer install`
+`$ composer install`
+
+`$ sudo cp -r vendor /opt/secioss-gateway/www/server/`
 
 xtermをインストールします。
 
