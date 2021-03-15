@@ -183,13 +183,14 @@ Secioss PrivilegedIDサーバー上で、上記のスクリプト実行後に1�
 
     30 0 * * * root/opt/secioss-gateway/task/privilegedid_remote_sync.php
 
-## API
-### セッションID取得
+## 特権ID API
+### 認証
+認証APIでセッションIDを取得して、特権ID付与APIのリクエスト時に送信して下さい。
 #### リクエスト
 |パラメータ|必須|説明|
 |---|---|---|
 |action_login|〇|true|
-|id|〇|ユーザーID|
+|id|〇|LISMの管理者のユーザーID|
 |password|〇|パスワード|
 
 #### レスポンス
@@ -197,21 +198,27 @@ Secioss PrivilegedIDサーバー上で、上記のスクリプト実行後に1�
       <code>エラーコード</code>
       <sessid>セッションID</sessid>
     </response>
+エラーコードは0が成功で、それ以外の値はエラーです。
 
 ### 特権ID付与
+ユーザーに特権IDによるアクセスを許可します。ユーザーには複数の特権IDを付与することができます。  
 #### リクエスト
 |パラメータ|必須|説明|
 |---|---|---|
 |action_user_assignPrivilegedId|〇|true|
-|id|〇|ユーザーID|
+|sessid|〇|セッションID|
+|id|〇|特権IDを付与するユーザーID|
 |privilegedid[]|〇|特権ID|
 |assignedservice[]|〇|対象サーバーのターゲットID|
 |privilegetype[]|〇|取消契機（infinite：無期限、time_limiteation：期間指定）|
 |startdate[]||アクセス開始日時|
 |expirationdate[]||アクセス終了日時|
 
+特権IDを複数付与する場合、privielgedid、assigndservice、privilgetype、startdate、expireationdateを配列で渡して下さい。
+
 #### レスポンス
     <response>
       <code>エラーコード</code>
       <message>メッセージ</message>
     </response>
+エラーコードは0が成功で、それ以外の値はエラーです。
