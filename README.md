@@ -74,6 +74,10 @@ xtermをインストールします。
 
 `# npm install xterm`
 
+Secioss PrivilegedIDのデーモンを起動します。
+
+`# php /opt/secioss-gateway/www/server/bin/websocket.php &`
+
 ### Guacamole サーバー構築
 Windowsサーバーへのリモートアクセスに使用するGuacamoleサーバーをインストールして下さい。
 よろしければ弊社導入記事を参考にして下さい。
