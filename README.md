@@ -6,6 +6,7 @@ Windowsサーバーに対するアクセス制御には、Apache Guacamoleを使
 Secioss PrivilegedID では以下の機能を提供します。
 
 * SSH/RDP/データベースへのアクセス制御
+  ユーザーに対して時間帯を指定して特権IDによるサーバーへのアクセスを許可します。
 * 特権IDのサーバーでの操作記録
 * Linuxサーバー、Windowsサーバーの特権IDに対する定期パスワード変更
 
