@@ -80,6 +80,8 @@ xtermをインストールします。
 
 `# npm install xterm`
 
+/etc/php.iniのmbstring.internal_encodingを"UTF-8"に設定して下さい。
+
 Secioss PrivilegedIDのデーモンを起動します。
 
 `# php /opt/secioss-gateway/www/server/bin/websocket.php &`
