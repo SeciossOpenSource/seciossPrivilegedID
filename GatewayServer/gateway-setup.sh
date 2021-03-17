@@ -3,6 +3,7 @@
 # copy remote id sync files.
 \cp -rf ./files/opt /
 cp ./httpd/* /etc/httd/conf.d/
+chown -R apache.apache /opt/secioss-gateway/www/pidgw
 
 # Create Certificate.
 certdir='/opt/secioss-gateway/www/simplesamlphp/cert'
