@@ -14,10 +14,7 @@
         var wSocket = new WebSocket("wss:{/literal}{$server_name}{literal}/wss/");
         Terminal.applyAddon(attach);  // Apply the `attach` addon
         Terminal.applyAddon(fit);  //Apply the `fit` addon
-        var term = new Terminal({
-				  cols: 80,
-				  rows: 24
-        });
+        var term = new Terminal();
         term.open(document.getElementById('terminal'));
 
         function ConnectServer(){
@@ -30,7 +27,7 @@
                           };
           wSocket.send(JSON.stringify(dataSend));
           console.log("Connected");
-          term.fit();
+//          term.fit();
           term.focus();
         }       
 
@@ -64,7 +61,7 @@
         // Recalculates the terminal Columns / Rows and sends new size to SSH server + xtermjs
         function resize() {
           if (term) {
-            term.fit()
+//            term.fit()
           }
         }
 
