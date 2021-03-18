@@ -11,6 +11,7 @@
       <div id="terminal" style="width:100%; height:90vh"></div>
       <script>
         var resizeInterval;
+        var ws_closed = false;
         var wSocket = new WebSocket("wss:{/literal}{$server_name}{literal}/wss/");
         Terminal.applyAddon(attach);  // Apply the `attach` addon
         Terminal.applyAddon(fit);  //Apply the `fit` addon
@@ -18,6 +19,10 @@
         term.open(document.getElementById('terminal'));
 
         function ConnectServer(){
+          if (ws_closed) {
+            location.reload();
+          }
+
           var dataSend = {"auth":
                             {
 {/literal}
@@ -43,7 +48,12 @@
           term.detach(wSocket);
           alert("Connection Closed");
         }        
-        
+
+        wSocket.onclose = function (event) {
+          console.log("Socket Close");
+          ws_closed = true;
+        }
+
         term.on('data', function (data) {
           var dataSend = {"data":{"data":data}};
           wSocket.send(JSON.stringify(dataSend));
