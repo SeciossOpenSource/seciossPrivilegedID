@@ -60,7 +60,7 @@ lism-setup.shを実行すると、公開鍵証明書が作成されるので、S
 
 `# yum install -y epel-release`
 
-`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2 mariadb postgresql npm`
+`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2 mariadb postgresql npm sshpass`
 
 GatewayServer配下のファイルを配置します。
 
