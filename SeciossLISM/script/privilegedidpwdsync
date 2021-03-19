@@ -100,12 +100,12 @@ my %NAMEDHOST = (
 ### SUBROUTINE ###
 sub _auditMessage
 {
-    my ($tenant, $modifier, $op, $dn, $result, $error, $message) = @_;
+    my ($tenant, $op, $dn, $result, $error, $message) = @_;
     my ($service) = ($dn =~ /^.*,ou=([^,]*),${BASEDN}$/);
     my ($uid) = ($dn =~ /uid=([^,]*)/);
     
     if ($uid && $service) {
-        my $logdata = "$tenant; cn=ID Manager\@$tenant,$BASEDN; $result; $service; $uid; ip=127.0.0.1 user=\"$modifier\" type=$op dn=\"$dn\" result=$result error=\"$error\" $message";
+        my $logdata = "$tenant; cn=ID Manager\@$tenant,$BASEDN; $result; $service; $uid; ip=127.0.0.1 user=\"ID Manager\@$tenant,$BASEDN\" type=$op dn=\"$dn\" result=$result error=\"$error\" $message";
         _auditOutput($logdata);
     } else {
         _err("audit message is logging failed: dn=$dn; rc=$result; error=$error; message=$message;");
@@ -309,7 +309,7 @@ sub syncPasswdChange
                 }
             }
             if (!$oldpassword) {
-                $errmsg = "gateway remote sync: encryptedpassword decyrpt error($dn).";
+                $errmsg = "gateway remote sync: encryptedpassword decrypt error($dn).";
                 _err($errmsg);
                 return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
             }
