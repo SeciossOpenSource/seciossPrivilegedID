@@ -159,7 +159,7 @@ foreach ($params as $key => $value) {
 $aeskey = Crypt::getSecretKey($conf['gateway']['keyfile']);
 
 $password = '';
-if (isset($attrs['seciossEncryptedPassword'])) {
+if (isset($attrs['seciossEncryptedPassword']) && $attrs['seciossEncryptedPassword']) {
     $password = Util::decrypt($attrs['seciossEncryptedPassword'], null, $aeskey);
 }
 $log->info("$authuser login to $id");
@@ -168,7 +168,7 @@ $log->info("$authuser login to $id");
 $private_key = '';
 $passphrase = '';
 $publick_key = '';
-if (isset($attrs['seciossEncryptedPrivateKey'])) {
+if (isset($attrs['seciossEncryptedPrivateKey']) && $attrs['seciossEncryptedPrivateKey']) {
     $key_data = $attrs['seciossEncryptedPrivateKey'];
     // data分割
     if (preg_match('/^\{.*\}(.*)\{passphrase\}(.*)\{publickey\}(.*)$/', $key_data, $matches)) {
