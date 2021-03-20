@@ -292,22 +292,12 @@ sub syncPasswdChange
             }
 
             # パスワード抽出
-            my $oldpassword = '';
-            my (@oldencryptedpasswds) = ($entries[0] =~ /seciossEncryptedPassword: (.+)/ig);
-            if (!@oldencryptedpasswds) {
-                $errmsg = "gateway remote sync: encryptedpassword is invalid($dn).";
-                _err($errmsg);
-                return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+            my ($oldencryptedpasswd) = ($entries[0] =~ /seciossEncryptedPassword: (.+)/i);
+            if (!$oldencryptedpasswd || $oldencryptedpasswd =~ /^ *$/) {
+                next;
             }
-            foreach my $oldencryptedpasswd (@oldencryptedpasswds) {
-                if ($oldencryptedpasswd =~ /^\{$sp\}(.+)$/) {
-                    $oldpassword = seciossDecPasswd($1, $KEYFILE);
-                    last;
-                } else {
-                    $oldpassword = seciossDecPasswd($oldencryptedpasswd, $KEYFILE);
-                    last;
-                }
-            }
+
+            my $oldpassword = seciossDecPasswd($oldencryptedpasswd, $KEYFILE);
             if (!$oldpassword) {
                 $errmsg = "gateway remote sync: encryptedpassword decrypt error($dn).";
                 _err($errmsg);
@@ -340,7 +330,7 @@ sub syncPasswdChange
             # DB 書き込み
             my $dbh = DBI->connect($RDB_DSN, $RDB_USER, $RDB_PASSWD);
             if (!$dbh) {
-                $errmsg = "failed to connect db server. ".$dbh->errstr;
+                $errmsg = "failed to connect db server.";
                 _err($errmsg);
                 return ($dn, 1, $errmsg);
             }
