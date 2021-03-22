@@ -247,7 +247,6 @@ sub syncPasswdChange
             my $nowtime = DateTime->now;
             my $datetime = $nowtime->strftime("%F %T");
 
-            my $updateval = "userPassword:=*****";
             # DB 書き込み
             my $dbh = DBI->connect($RDB_DSN, $RDB_USER, $RDB_PASSWD);
             if (!$dbh) {
