@@ -267,8 +267,6 @@ sub syncPasswdChange
 
             $pwdsync = 1;
             _info("$sp create task succeeded($user)");
-            _auditMessage($tenant, 'modify', $dn, $rc, $rc ? $errmsg : '', $updateval);
-
         } else {
             $pwdsync = 1;
         }
