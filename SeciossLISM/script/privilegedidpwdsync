@@ -264,7 +264,6 @@ sub syncPasswdChange
                 die $dbh->errstr;
             }
 
-            $pwdsync = 1;
             _info("$sp create task succeeded($user)");
         } else {
             $pwdsync = 1;
