@@ -53,25 +53,6 @@ function _decrypt($string, $privatekey)
 }
 
 /**
- * 証明書を使った復号化を行う
- *
- * @param string $string
- * @param string $publickey
- *
- * @return string
- */
-function _encrypt($string, $publickey)
-{
-    if ($publickey) {
-        $key = openssl_get_publickey('file://'.$publickey);
-        if (openssl_public_encrypt($string, $encrypted, $key, OPENSSL_PKCS1_OAEP_PADDING)) {
-            return $encrypted;
-        }
-    }
-    return null;
-}
-
-/**
  * Send Request Provisioning API
  *
  * @param mixed $data
@@ -328,7 +309,6 @@ $key = $conf['seciosslink']['key'];
 $iv = $conf['seciosslink']['iv'];
 $gateway_id = $conf['gateway']['gateway_id'];
 $privatekey = $certdir.'/'.$conf['gateway']['privatekey'];
-$publickey = $certdir.'/PublicKey-idp'.($tenant ? "-$tenant" : '').'.pem';
 $record_dir = isset($conf['gateway']['record_dir']) ? $conf['gateway']['record_dir'] : null;
 
 if (isset($conf['seciosslink']['passwd']) && $conf['seciosslink']['passwd']) {
@@ -341,10 +321,6 @@ if (isset($conf['seciosslink']['passwd']) && $conf['seciosslink']['passwd']) {
 // 暗号化用証明書チェック
 if (!file_exists($privatekey)) {
     $log->info("Decrypt Certirficate is not exists. ($privatekey)");
-    exit(1);
-}
-if (!file_exists($publickey)) {
-    $log->info("Encrypt Certirficate is not exists. ($publickey)");
     exit(1);
 }
 
@@ -360,7 +336,6 @@ if ($tenant) {
 }
 
 _updateSessionRecords($sessionid, $gateway_id, $record_dir, $seciosslink);
-
 // タスクリスト取得
 $tasklist = _getTaskData($sessionid, $gateway_id, 0, $seciosslink);
 if (!count($tasklist['entries'])) {
@@ -382,30 +357,31 @@ if (!count($tasklist['entries'])) {
         $username = $entry['userName'];
         $object = $entry['object'];
         $log->info("start task job [taskid = $taskid]");
-        // base64 復号化
-        $decoded = base64_decode($object);
-        if (!$decoded) {
-            $log->err('failed to base64 decode Ojbect.');
-            exit(1);
-        }
-        // saml証明書 復号化
-        $decoded = _decrypt($decoded, $privatekey);
-        if (!$decoded) {
-            $log->err('failed to SAML certificate decrypt Ojbect.');
-            exit(1);
-        }
-        $decrypt = $decoded;
+
         // jsonテキスト から PHP object 変換
-        $data = json_decode($decrypt, true);
+        $data = json_decode($object, true);
 
         $targetid = $data['targetid'];
-        $newpassword = $data['newpassword'];
         $protocol = $data['protocol'];
         $hostname = $data['hostname'];
         $port = $data['port'];
         $domain = isset($data['domain']) ? $data['domain'] : '';
         $accountid = $data['accountid'];
-        $password = $data['password'];
+        $newpassword = null;
+        $password = null;
+        $newpublickey = null;
+        $oldprivatekey = null;
+        $oldpassphrase = null;
+        $oldpublickey = null;
+        if (isset($data['newpublickey'])) {
+            $newpublickey = $data['newpublickey'];
+            $oldprivatekey = $util->get_private_key($data['privatekey'], $conf['gateway']['privatekey']);
+            $oldpassphrase = _decrypt(base64_decode($data['passphrase']), $privatekey);
+            $oldpublickey = $data['publickey'];
+        } else {
+            $newpassword = _decrypt(base64_decode($data['newpassword']), $privatekey);
+            $password = _decrypt(base64_decode($data['password']), $privatekey);
+        }
 
         $message = '';
 
@@ -472,7 +448,14 @@ EOF;
             // ==== SSH パターン ====
             $log->info('privilegedid password sync for Linux.');
 
-            $cmd = 'sshpass -p "'.$password.'" ssh -o StrictHostKeyChecking=no '.$accountid.'@'.$hostname.' "echo '.$newpassword.' | passwd --stdin '.$accountid.'"';
+            if ($newpublickey) {
+                $pkfile = dirname(__FILE__).'/../tmp/id_rsa';
+                file_put_contents($pkfile, $oldprivatekey);
+                chmod($pkfile, 0600);
+                $cmd = 'sshpass'.($oldpassphrase ? ' -p "'.$oldpassphrase.'" -P "Enter passphrase for key"' : '').' ssh -o StrictHostKeyChecking=no -i '.$pkfile.' '.$accountid.'@'.$hostname.' \'echo "'.$newpublickey.'" >> .ssh/authorized_keys ; grep -v "'.$oldpublickey.'" .ssh/authorized_keys > .ssh/authorized_keys.tmp; cp .ssh/authorized_keys.tmp .ssh/authorized_keys; rm -f .ssh/authorized_keys.tmp\'';
+            } else {
+                $cmd = 'sshpass -p "'.$password.'" ssh -o StrictHostKeyChecking=no '.$accountid.'@'.$hostname.' \'echo -e "'.$password.'\n'.$newpassword.'\n'.$newpassword.'\n" | passwd\'';
+            }
 
             $util->secioss_exec($cmd, $res, $rc);
             // エラー処理
@@ -489,16 +472,14 @@ EOF;
             exit(1);
         }
         // 完了データ
-        $resobj = ['message' => $message, 'newpassword' => $newpassword, 'targetid' => $targetid, 'accountid' => $accountid];
+        $resobj = ['message' => $message, 'targetid' => $targetid, 'accountid' => $accountid];
         // json に直す
         $resjson = json_encode($resobj);
-        // Idp証明書で暗号化
-        $encrypted = _encrypt($resjson, $publickey);
-        if ($encrypted) {
+        if ($resjson) {
             // base64 エンコード
-            $encoded = base64_encode($encrypted);
+            $encoded = base64_encode($resjson);
         } else {
-            $log->err('failed to certificate encrypted: complete data object.');
+            $log->err('failed to encode json: complete data object.');
             exit(1);
         }
 

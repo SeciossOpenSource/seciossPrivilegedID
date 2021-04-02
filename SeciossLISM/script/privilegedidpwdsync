@@ -40,6 +40,8 @@ our $ATTR_SAMLSERIALIZE = 'seciossSamlSerializedData';
 our $PRIVILEGEDID_IDSYNC_ON = 'general';
 our $PRIVILEGEDID_IDSYNC_OFF = 'nosync';
 
+our $ENCCMD = 'php /usr/share/seciossadmin/bin/ssl_encrypt.php';
+
 ### CONFIGURATION ###
 my $privpwdconf = '/opt/secioss/etc/privilegedidpwdsync.conf';
 my $config = Config::General->new($privpwdconf);
@@ -142,7 +144,7 @@ sub _err {
 # sync use lism.conf storage.pm only.
 sub syncPasswdChange
 {
-    my ($lism, $user, $password, $tenant, $allowservice, $guacconf) = @_;
+    my ($lism, $user, $tenant, $allowservice, $guacconf) = @_;
     my @allowservice = @{$allowservice};
     my %guacconf = ();
     my @guacids = ();
@@ -155,11 +157,6 @@ sub syncPasswdChange
     my $errmsg = '';
 
     my $basedn = "ou=Master,$BASEDN";
-    if (!$password) {
-        $errmsg = "invalid password";
-        _err($errmsg);
-        return ($basedn, LDAP_OPERATIONS_ERROR , $errmsg);
-    }
 
     # master ldap search user.
     my ($rc, @entries) = $lism->search($basedn, 2, 1, 0, 0, "(&(objectClass=Person)(uid=$user)(seciossPrivilegedIdType=*))", 0);
@@ -179,11 +176,6 @@ sub syncPasswdChange
 
     $entries[0] = encode('utf8', $entries[0]);
     my ($dn) = ($entries[0] =~ /^dn: (.*)\n/);
-
-    # create encrypted password.
-    my $pwdline = seciossEncPasswd("userPassword: $password", $KEYFILE);
-    $pwdline =~ s/\n([^: \n]+)$/$1/;
-    my ($encpasswd) = ($pwdline =~ /seciossEncryptedPassword: (.+)/i);
 
     # service update password only.
     my $pwdsync = 0;
@@ -214,34 +206,90 @@ sub syncPasswdChange
 
             # パスワード抽出
             my ($oldencryptedpasswd) = ($entries[0] =~ /seciossEncryptedPassword: (.+)/i);
-            if (!$oldencryptedpasswd || $oldencryptedpasswd =~ /^ *$/) {
+            my ($oldencryptedprivatekey) = ($entries[0] =~ /seciossEncryptedPrivatekey: (.+)/i);
+            if (!$oldencryptedprivatekey) {
+                ($oldencryptedprivatekey) = ($entries[0] =~ /seciossEncryptedPrivatekey:: (.+)/i);
+                $oldencryptedprivatekey = decode_base64($oldencryptedprivatekey);
+            }
+            if ((!$oldencryptedpasswd || $oldencryptedpasswd =~ /^ *$/) && (!$oldencryptedprivatekey || $oldencryptedprivatekey =~ /^ *$/)) {
                 next;
             }
 
-            my $oldpassword = seciossDecPasswd($oldencryptedpasswd, $KEYFILE);
-            if (!$oldpassword) {
-                $errmsg = "gateway remote sync: encryptedpassword decrypt error($dn).";
-                _err($errmsg);
-                return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
-            }
+            my $key = $targetconfig{'certificate'};
+            my %taskobject;
+            if ($oldencryptedprivatekey) {
+                my $tmpfile = "/opt/secioss/var/lib/ldap/id_rsa";
+                my $passphrase = randString(8, 'a..z', 'A..Z', '0..9');
+                $rc = system("ssh-keygen -t rsa -N ".$passphrase." -f $tmpfile");
+                if ($rc) {
+                    $errmsg = "gateway remote sync: ssh-keygen error($rc).";
+                    _err($errmsg);
+                    return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+                }
 
-            my %taskobject = (
-                'targetid' => $sp,
-                'newpassword' => $password,
-                'protocol' => $targetconfig{'protocol'},
-                'hostname' => $targetconfig{'hostname'},
-                'port' => $targetconfig{'port'},
-                'accountid' => $loginid,
-                'password' => $oldpassword
-            );
+                my $privatekey = &readFile($tmpfile);
+                if (!$privatekey) {
+                    $errmsg = "gateway remote sync: can't read private key.";
+                    _err($errmsg);
+                    return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+                }
+                my $publickey = &readFile("$tmpfile.pub");
+                if (!$publickey) {
+                    $errmsg = "gateway remote sync: can't read public key.";
+                    _err($errmsg);
+                    return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+                }
+                chomp($publickey);
+                unlink($tmpfile);
+                unlink("$tmpfile.pub");
+
+                my $encprivatekey = `$ENCCMD "$privatekey" "$key"`;
+                my $encpassphrase = `$ENCCMD "$passphrase" "$key"`;
+
+                my @elts = ($oldencryptedprivatekey =~ /^{[^}]+}([^{]+){passphrase}(.*){publickey}(.*)$/);
+
+                %taskobject = (
+                    'targetid' => $sp,
+                    'newpublickey' => $publickey,
+                    'newprivatekey' => $encprivatekey,
+                    'newpassphrase' => $encpassphrase,
+                    'protocol' => $targetconfig{'protocol'},
+                    'hostname' => $targetconfig{'hostname'},
+                    'port' => $targetconfig{'port'},
+                    'accountid' => $loginid,
+                    'privatekey' => $elts[0],
+                    'passphrase' => $elts[1],
+                    'publickey' => $elts[2]
+                );
+            } else {
+                my $password = randString($SA_PWD_LEN, 'a..z', 'A..Z', '0..9');
+                # create encrypted password.
+                my $pwdline = seciossEncPasswd("userPassword: $password", $KEYFILE);
+                $pwdline =~ s/\n([^: \n]+)$/$1/;
+                my ($encpasswd) = ($pwdline =~ /seciossEncryptedPassword: (.+)/i);
+
+                my $oldpassword = seciossDecPasswd($oldencryptedpasswd, $KEYFILE);
+                if (!$oldpassword) {
+                    $errmsg = "gateway remote sync: encryptedpassword decrypt error($dn).";
+                    _err($errmsg);
+                    return ($dn, LDAP_OPERATIONS_ERROR, $errmsg);
+                }
+
+                %taskobject = (
+                    'targetid' => $sp,
+                    'newpassword' => &_encrypt($password, $key),
+                    'encryptedpassword' => $encpasswd,
+                    'protocol' => $targetconfig{'protocol'},
+                    'hostname' => $targetconfig{'hostname'},
+                    'port' => $targetconfig{'port'},
+                    'accountid' => $loginid,
+                    'password' => &_encrypt($oldpassword, $key)
+                );
+            }
             if (defined($targetconfig{'domain'}) && $targetconfig{'domain'}) {
                 $taskobject{'domain'} = $targetconfig{'domain'};
             }
             my $taskjson = encode_json(\%taskobject);
-
-            # SAMLの証明書を使って暗号化 & base64エンコード
-            my $key = $targetconfig{'certificate'};
-            my $encryptobj = &_encrypt($taskjson, $key);
 
             # 現在日時(UTC)
             my $nowtime = DateTime->now;
@@ -256,7 +304,7 @@ sub syncPasswdChange
             }
 
             my $sql = "INSERT INTO $RDB_TABLE (gatewayid, createDate, tenant, userName, type, object, status)"
-                        ." VALUES ('".$targetconfig{'gatewayid'}."' , '$datetime', '$tenant', '$user', 'passwordsync', '$encryptobj', 0)";
+                        ." VALUES ('".$targetconfig{'gatewayid'}."' , '$datetime', '$tenant', '$user', 'passwordsync', '$taskjson', 0)";
 
             my $rv = $dbh->do($sql);
             if (!defined($rv)) {
@@ -266,6 +314,15 @@ sub syncPasswdChange
 
             _info("$sp create task succeeded($user)");
         } else {
+            my $password = randString($SA_PWD_LEN, 'a..z', 'A..Z', '0..9');
+            # create encrypted password.
+            my $pwdline = seciossEncPasswd("userPassword: $password", $KEYFILE);
+            $pwdline =~ s/\n([^: \n]+)$/$1/;
+            my ($encpasswd) = ($pwdline =~ /seciossEncryptedPassword: (.+)/i);
+
+            push(@modinfo, 'REPLACE', 'userPassword', $password);
+            push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', $encpasswd);
+
             $pwdsync = 1;
         }
         last;
@@ -274,12 +331,6 @@ sub syncPasswdChange
     if (!$pwdsync) {
         return;
     }
-
-    # update password.
-    push(@modinfo, 'REPLACE', 'userPassword', $password);
-    push(@modinfo, 'REPLACE', 'seciossEncryptedPassword', $encpasswd);
-    #random passwd
-    push(@modinfo, 'REPLACE', 'seciossRandomPassword', $encpasswd);
 
     if ($tenant) {
         $lism->{bind}{edn} = "cn=ID Manager\@$tenant,$BASEDN";
@@ -333,6 +384,24 @@ sub search
     return ($rc, @objects);
 }
 
+sub readFile {
+    my ($file) = @_;
+    my $fd;
+    my $content = '';
+
+    if (!open($fd, "< $file")) {
+        return;
+    }
+
+    while (<$fd>) {
+        $content .= $_;
+    }
+
+    close $fd;
+
+    return $content;
+}
+
 sub _encrypt {
     my ($string, $arg) = @_;
     my $x509 = Crypt::OpenSSL::X509->new_from_string($arg);
@@ -340,7 +409,7 @@ sub _encrypt {
     Crypt::OpenSSL::RSA->import_random_seed();
     my $rsa = Crypt::OpenSSL::RSA->new_public_key($x509->pubkey());
 
-    return encode_base64($rsa->encrypt($string));
+    return encode_base64($rsa->encrypt($string), '');
 }
 
 # ##
@@ -449,7 +518,6 @@ for (my $i = 0; $i < @tenants; $i++) {
         my %puser = %{$privilegedid};
 
         my $user = $puser{'uid'}[0];
-        my $password = randString($SA_PWD_LEN, 'a..z', 'A..Z', '0..9');
 
         # update judgement for latest datetime.
         if (defined($puser{$ATTR_PWDCHANGETIME}) && $puser{$ATTR_PWDCHANGETIME}) {
@@ -460,13 +528,7 @@ for (my $i = 0; $i < @tenants; $i++) {
             }
         }
         my @errobj = ();
-        if ($puser{'seciossPrivilegedIdType'}[0] eq $PRIVILEGEDID_IDSYNC_ON) {
-            # IDsync option enable.
-            @errobj = syncPasswdChange($lism, $user, $password, $tenant, \@allow, \%guacconflist);
-        } elsif ($puser{'seciossPrivilegedIdType'}[0] eq $PRIVILEGEDID_IDSYNC_OFF) {
-            # IDsync option disable.
-            @errobj = syncPasswdChange($lism, $user, $password, $tenant, \@allow, \%guacconflist);
-        }
+        @errobj = syncPasswdChange($lism, $user, $tenant, \@allow, \%guacconflist);
         if(@errobj) {
             my $dn        = defined($errobj[0]) ? $errobj[0] : $BASEDN;
             my $rc        = defined($errobj[1]) ? $errobj[1] : 0;

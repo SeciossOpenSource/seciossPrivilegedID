@@ -50,9 +50,4 @@ while [ -z "$common_name" ]; do
     read common_name leftover
 done
 
-certdir='/opt/secioss/etc/'
-openssl genrsa -out ${certdir}/gateway_private.key 2048 2>&1
-openssl req -new -x509 -key ${certdir}/gateway_private.key -out ${certdir}/gateway_public.pem -days 365 -subj "/C=${country}/ST=${state}/L=${locality}/O=${organizational_name}/OU=${organizational_unit}/CN=${common_name}" -sha256 2>&1
-
-
 echo "設定が完了しました"
