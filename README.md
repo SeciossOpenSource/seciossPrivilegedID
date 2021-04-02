@@ -49,10 +49,6 @@ LISMのセットアップツール(setup.sh)を起動時に、mariadbの初期�
 
 `# ./lism-setup.sh`
 
-lism-setup.shを実行すると、公開鍵証明書が作成されるので、Secioss PrivilegedIDサーバーにに配置して下さい。。
-
-`# scp LISMサーバー:/opt/secioss/etc/gateway_public.pem /opt/secioss-gateway/www/simplesamlphp/cert/PublicKey-idp.pem`
-
 また、LISMをSecioss PrivilegedIDと別サーバーにインストールしている場合は、/opt/secioss/etc/auth_tkt.confをSecioss PrivilegeIDサーバー上にコピーして下さい。
 
 ### Secioss PrivilegedID
