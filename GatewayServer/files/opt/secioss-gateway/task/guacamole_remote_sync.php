@@ -76,7 +76,7 @@ $entries = ldap_get_entries($ldap, $res);
 for ($i = 0; $i < $entries['count']; $i++) {
     $data = ['id' => $entries[$i]['seciossloginid'][0], 'service_id' => $entries[$i]['seciossallowedservice'][0]];
     if (isset($entries[$i]['seciossencryptedprivatekey'])) {
-        if (preg_match('/^\{.*\}(.*)\{passphrase\}(.*)\{publickey\}(.*)$/', $entries[$i]['seciossencryptedprivatekey'], $matches)) {
+        if (preg_match('/^\{.*\}(.*)\{passphrase\}(.*)\{publickey\}(.*)$/', $entries[$i]['seciossencryptedprivatekey'][0], $matches)) {
             $encrypt_privatekey = $matches[1];
             $encrypt_passphrase = $matches[2];
             $public_key = $matches[3];
@@ -141,6 +141,10 @@ foreach ($pid_list as $key => $data) {
         $params = ['hostname' => $guac->hostname, 'port' => $guac->port, 'username' => $data['id']];
         if (isset($data['password'])) {
             $params['password'] = $data['password'];
+        }
+        if (property_exists($guac, 'recording-path')) {
+            $params['recording-path'] = $guac->{'recording-path'};
+            $params['recording-name'] = $guac->{'recording-name'};
         }
         foreach ($params as $key => $value) {
             $sql = 'INSERT INTO guacamole_connection_parameter(connection_id, parameter_name, parameter_value) VALUES(?, ?, ?)';
