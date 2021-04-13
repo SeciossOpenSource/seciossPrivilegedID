@@ -56,7 +56,7 @@ LISMのセットアップツール(setup.sh)を起動時に、mariadbの初期�
 
 `# yum install -y epel-release`
 
-`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2 mariadb postgresql npm sshpass`
+`# yum install -y php php-mbstring php-xml php-pear php-pear-Log php-pecl-uuid php-pecl-ssh2 mariadb postgresql npm sshpass memcached`
 
 GatewayServer配下のファイルを配置します。
 
@@ -64,7 +64,7 @@ GatewayServer配下のファイルを配置します。
 
 Ratchetをインストールします。
 
-`$ cp /opt/secioss-gatway/www/server/composer.json .`
+`$ cp /opt/secioss-gateway/www/server/composer.json .`
 
 `$ composer install`
 
