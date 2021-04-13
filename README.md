@@ -82,6 +82,8 @@ xtermをインストールします。
 
 Secioss PrivilegedIDのデーモンを起動します。
 
+`# systemctl start httpd`
+`# systemctl start memcached`
 `# php /opt/secioss-gateway/www/server/bin/websocket.php &`
 
 ### Guacamole サーバー構築
