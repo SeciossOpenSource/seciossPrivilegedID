@@ -2,7 +2,7 @@
 
 # copy remote id sync files.
 \cp -rf ./files/opt /
-cp ./httpd/* /etc/httd/conf.d/
+cp ./httpd/* /etc/httpd/conf.d/
 chown -R apache.apache /opt/secioss-gateway/www/pidgw
 
 # Create Certificate.
