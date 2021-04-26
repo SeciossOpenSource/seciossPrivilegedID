@@ -172,7 +172,7 @@ SAMLレスポンスのName IDで、LISMのユーザーIDを渡すように設定
 ユーザーは以下のURLからリモートアクセスが可能です。  
 認証はSAMLで行うので、IdPへのログイン後、リモートアクセスすることができます。
 
-* SSH/データベース: https://<Secioss PrivilegedIDのホスト名>/pidgw/auth.php?id=<特権IDのログイン>/<ターゲットID>
+* SSH/データベース: https://<Secioss PrivilegedIDのホスト名>/pidgw/auth.php?id=<特権IDのログインID>/<ターゲットID>
 * RDP: https://<Secioss PrivilegedIDのホスト名>/guacamole/
 
 ## 使用方法：定期パスワード変更
