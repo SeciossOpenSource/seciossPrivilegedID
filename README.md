@@ -62,7 +62,8 @@ GatewayServer配下のファイルを配置します。
 
 `# ./gateway-setup.sh`
 
-Ratchetをインストールします。
+Ratchetをインストールします。  
+一般ユーザーで実行して下さい。
 
 `$ cp /opt/secioss-gateway/www/server/composer.json .`
 
