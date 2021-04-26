@@ -62,6 +62,12 @@ GatewayServer配下のファイルを配置します。
 
 `# ./gateway-setup.sh`
 
+設定ファイル/opt/secioss-gateway/www/conf/config.iniに以下の設定を行って下さい。
+* ldap_uri: LISMのLDAPサーバーのURI
+* ldap_binddn: LISMのLDAPサーバーに接続するユーザーのDN
+* ldap_bindpw: LISMのLDAPサーバーに接続するパスワード
+* ldap_basedn: LISMのLDAPサーバーのベースDN
+
 Ratchetをインストールします。  
 一般ユーザーで実行して下さい。
 
