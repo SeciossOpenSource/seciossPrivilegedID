@@ -62,7 +62,14 @@ GatewayServer配下のファイルを配置します。
 
 `# ./gateway-setup.sh`
 
-Ratchetをインストールします。
+設定ファイル/opt/secioss-gateway/www/conf/config.iniに以下の設定を行って下さい。
+* ldap_uri: LISMのLDAPサーバーのURI
+* ldap_binddn: LISMのLDAPサーバーに接続するユーザーのDN
+* ldap_bindpw: LISMのLDAPサーバーに接続するパスワード
+* ldap_basedn: LISMのLDAPサーバーのベースDN
+
+Ratchetをインストールします。  
+インストールは一般ユーザーで実行して下さい。
 
 `$ cp /opt/secioss-gateway/www/server/composer.json .`
 
@@ -83,7 +90,9 @@ xtermをインストールします。
 Secioss PrivilegedIDのデーモンを起動します。
 
 `# systemctl start httpd`
+
 `# systemctl start memcached`
+
 `# php /opt/secioss-gateway/www/server/bin/websocket.php &`
 
 ### Guacamole サーバー構築
@@ -163,7 +172,7 @@ SAMLレスポンスのName IDで、LISMのユーザーIDを渡すように設定
 ユーザーは以下のURLからリモートアクセスが可能です。  
 認証はSAMLで行うので、IdPへのログイン後、リモートアクセスすることができます。
 
-* SSH/データベース: https://<Secioss PrivilegedIDのホスト名>/pidgw/auth.php?id=<ターゲットID>
+* SSH/データベース: https://<Secioss PrivilegedIDのホスト名>/pidgw/auth.php?id=<特権IDのログインID>/<ターゲットID>
 * RDP: https://<Secioss PrivilegedIDのホスト名>/guacamole/
 
 ## 使用方法：定期パスワード変更
