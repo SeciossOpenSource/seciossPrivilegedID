@@ -96,4 +96,16 @@ sed -i -r -e "s/^(gateway_id\s*=\s*\")[^\"]*(\")/\1${gateway_id}\2/g" $file
 sed -i -r -e "s/^(privatekey\s*=\s*\")[^\"]*(\")/\1PrivateKey.pem\2/g" $file
 sed -i -r -e "s/^(publickey\s*=\s*\")[^\"]*(\")/\1PublicKey.pem\2/g" $file
 
+if [ ! -d /home/pidgw ]; then
+    useradd pidgw
+    mkdir /home/pidgw/.ssh
+    chmod 700 /home/pidgw/.ssh
+fi
+ssh-keygen -t rsa -N "" -f /opt/secioss-gateway/www/conf/id_rsa
+cp /opt/secioss-gateway/www/conf/id_rsa.pub /home/pidgw/.ssh/authorized_keys
+chmod 400 /home/pidgw/.ssh/authorized_keys
+chown -R pidgw:pidgw /home/pidgw/.ssh
+chown apache /opt/secioss-gateway/www/conf/id_rsa*
+chmod 600 /opt/secioss-gateway/www/conf/id_rsa*
+
 echo "設定が完了しました"
