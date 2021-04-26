@@ -69,7 +69,7 @@ GatewayServer配下のファイルを配置します。
 * ldap_basedn: LISMのLDAPサーバーのベースDN
 
 Ratchetをインストールします。  
-一般ユーザーで実行して下さい。
+インストールは一般ユーザーで実行して下さい。
 
 `$ cp /opt/secioss-gateway/www/server/composer.json .`
 
