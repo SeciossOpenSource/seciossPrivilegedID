@@ -57,10 +57,6 @@
         term.on('data', function (data) {
           var dataSend = {"data":{"data":data}};
           wSocket.send(JSON.stringify(dataSend));
-          //Xtermjs with attach dont print zero, so i force. Need to fix it :(
-          if (data=="0"){
-            term.write(data);
-          }
         })
         
         //Execute resize with a timeout

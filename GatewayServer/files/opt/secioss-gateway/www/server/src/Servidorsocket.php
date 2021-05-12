@@ -50,7 +50,7 @@ class Servidorsocket implements MessageComponentInterface
             case 'data':
                 fwrite($this->shell[$from->resourceId], $data['data']['data']);
                 usleep(800);
-                while ($line = fgets($this->shell[$from->resourceId])) {
+                while (($line = fgets($this->shell[$from->resourceId])) !== false) {
                     $from->send(mb_convert_encoding($line, 'UTF-8'));
                     if ($this->recording[$from->resourceId]) {
                         fwrite($this->recording[$from->resourceId], $line);
@@ -75,7 +75,7 @@ class Servidorsocket implements MessageComponentInterface
                         fwrite($this->shell[$from->resourceId], "\n");
                         usleep(800);
                         fgets($this->shell[$from->resourceId]);
-                        while ($line = fgets($this->shell[$from->resourceId])) {
+                        while (($line = fgets($this->shell[$from->resourceId])) !== false) {
                             $from->send(mb_convert_encoding($line, 'UTF-8'));
                             if ($this->recording[$from->resourceId]) {
                                 fwrite($this->recording[$from->resourceId], $line);
@@ -94,7 +94,7 @@ class Servidorsocket implements MessageComponentInterface
                         $rc = $this->connectSSH($idConnection, $from);
                     }
                     if ($rc) {
-                        while ($line = fgets($this->shell[$from->resourceId])) {
+                        while (($line = fgets($this->shell[$from->resourceId])) !== false) {
                             $from->send(mb_convert_encoding($line, 'UTF-8'));
                             if ($this->recording[$from->resourceId]) {
                                 fwrite($this->recording[$from->resourceId], $line);
@@ -108,7 +108,7 @@ class Servidorsocket implements MessageComponentInterface
                 break;
             default:
                 if ($this->protocol[$from->resourceId]) {
-                    while ($line = fgets($this->shell[$from->resourceId])) {
+                    while (($line = fgets($this->shell[$from->resourceId])) !== false) {
                         $from->send(mb_convert_encoding($line, 'UTF-8'));
                         if ($this->recording[$from->resourceId]) {
                             fwrite($this->recording[$from->resourceId], $line);
@@ -204,7 +204,7 @@ class Servidorsocket implements MessageComponentInterface
             $this->protocol[$from->resourceId] = $protocol;
             $this->idConnection[$from->resourceId] = $idConnection;
 
-            while (fgets($this->shell[$from->resourceId])) {
+            while (fgets($this->shell[$from->resourceId]) !== false) {
             }
             switch ($protocol) {
                 case 'sql_oracle':
