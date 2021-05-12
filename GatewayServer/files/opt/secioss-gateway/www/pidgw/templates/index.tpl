@@ -32,7 +32,7 @@
                           };
           wSocket.send(JSON.stringify(dataSend));
           console.log("Connected");
-//          term.fit();
+          term.fit();
           term.focus();
         }       
 
