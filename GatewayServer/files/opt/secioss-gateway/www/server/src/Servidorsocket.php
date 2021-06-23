@@ -15,8 +15,8 @@ use Ratchet\MessageComponentInterface;
 
 class Servidorsocket implements MessageComponentInterface
 {
-    const COLS = 480;
-    const ROWS = 144;
+    const COLS = 80;
+    const ROWS = 24;
     protected $clients;
     protected $connection = [];
     protected $shell = [];
