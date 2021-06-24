@@ -8,7 +8,7 @@
       <script src="node_modules/xterm/dist/addons/fit/fit.js"></script>
     </head>
     <body>
-      <div id="terminal" style="width:100%; height:90vh"></div>
+      <div id="terminal" style="width:52vw; height:90vh"></div>
       <script>
         var resizeInterval;
         var ws_closed = false;
@@ -32,7 +32,7 @@
                           };
           wSocket.send(JSON.stringify(dataSend));
           console.log("Connected");
-          term.fit();
+//          term.fit();
           term.focus();
         }       
 
