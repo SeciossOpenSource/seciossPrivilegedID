@@ -17,8 +17,8 @@ use Symfony\Component\HttpFoundation\Session\Storage\Handler;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
-$conf = parse_ini_file(dirname(__DIR__) . '/../conf/config.ini', true);
-$memcache = new Memcache;
+$conf = parse_ini_file(dirname(__DIR__).'/../conf/config.ini', true);
+$memcache = new Memcache();
 if (isset($conf) && isset($conf['gateway']['memcache_host'])) {
     $hosts = explode(' ', $conf['gateway']['memcache_host']);
     foreach ($hosts as $host) {
@@ -33,6 +33,10 @@ if (isset($conf) && isset($conf['gateway']['memcache_host'])) {
     $memcache->addServer('localhost', 11211);
 }
 
+$port = 8090;
+if ($argc > 1) {
+    $port = $argv[1];
+}
 $server = IoServer::factory(
     new HttpServer(
         new SessionProvider(
@@ -42,7 +46,7 @@ $server = IoServer::factory(
             new Handler\MemcacheSessionHandler($memcache)
         )
     ),
-    8090
+    $port
 );
 
 $server->run();
