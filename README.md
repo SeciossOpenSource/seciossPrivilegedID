@@ -93,7 +93,7 @@ Secioss PrivilegedIDのデーモンを起動します。
 
 `# systemctl start memcached`
 
-`# php /opt/secioss-gateway/www/server/bin/websocket.php >& /var/log/ws_error.log &`
+`# /opt/secioss-gateway/www/bin/websocket.sh start`
 
 ### Guacamole サーバー構築
 Windowsサーバーへのリモートアクセスに使用するGuacamoleサーバーをインストールして下さい。
